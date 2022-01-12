@@ -1,0 +1,155 @@
+const { expect } = require("chai");
+const { joinSignature } = require("ethers/lib/utils");
+const { ethers } = require("hardhat");
+
+
+describe("innToken", function () {
+  let signers;
+  let InnToken;
+  let innToken;
+  let contractAddress; 
+  let CONSENSUS_ROLE_SIGNER ; 
+
+  const CONSENSUS_ROLE = ethers.utils.keccak256( ethers.utils.toUtf8Bytes("CONSENSUS_ROLE"));
+  const DEFAULT_ADMIN_ROLE = 0x00;
+
+  
+  before(async () => {
+    signers = await ethers.getSigners();
+    InnToken = await ethers.getContractFactory("InnToken");
+    innToken = await InnToken.deploy();
+    await innToken.deployed();
+    
+    //set the CONSENSUS_ROLE to the 10'th account
+    CONSENSUS_ROLE_SIGNER = signers[9];
+    await innToken.grantRole(CONSENSUS_ROLE , CONSENSUS_ROLE_SIGNER.address);
+
+    //initialize account 5
+    await innToken.connect(CONSENSUS_ROLE_SIGNER).transfer(10000 , signers[5].address);
+      
+    contractAddress = innToken.address;
+  });
+
+
+  it("shoud any one transfer token from itself account" , async function(){
+    //given
+      const fromBalance = await innToken.balanceOf(signers[5].address);
+      const toBalance = await innToken.balanceOf(signers[6].address);
+    //when 
+      await innToken.connect(signers[5]).transfer(signers[6].address , 1000);
+    //then 
+      expect(await innToken.balanceOf(signers[0].address)).to.equal(parseInt(fromBalance) - 1000);
+      expect(await innToken.balanceOf(signers[0].address)).to.equal(parseInt(toBalance) + 1000);
+
+  });
+
+  it("Should Any One approve token to other account" , async function(){
+    //given 
+      const allowance = await innToken.allowance(signers[5].address , signers[6].address);
+
+    //when 
+      await innToken.connect(signers[5]).approve(signers[6].address , 1000);
+
+    //then 
+      expect(await innToken.allowance(signers[5].address , signers[6].address)).to.equal(parseInt(allowance) + 1000);
+
+  });
+
+  it("Should Any One increase allowance token to other account", async () => {
+    // given
+      const allowance = await innToken.allowance(signers[5].address , signers[6].address);
+
+    // when
+      await innToken.connect(signers[5]).increaseAllowance(signers[6].address , 2000);
+
+    // then
+    expect(await innToken.allowance(signers[5].address , signers[6].address)).to.equal(parseInt(allowance) + 2000);
+
+  });
+
+  it("Should Any One decrease allowance token to other account", async () => {
+    // given
+      const allowance = await innToken.allowance(signers[5].address , signers[6].address);
+
+    // when
+      await innToken.connect(signers[5]).decreaseAllowance(signers[6].address , 2000);
+
+    // then
+    expect(await innToken.allowance(signers[5].address , signers[6].address)).to.equal(parseInt(allowance) - 2000);
+
+  });
+
+
+
+  it("Should Any one transferFrom from alowance wallet to other account", async () => {
+    // given
+    const allowance = await innToken.allowance(signers[5].address , signers[6].address);
+    const fromBalance = await innToken.balanceOf(signers[5].address);
+    const toBalance = await innToken.balanceOf(signers[7].address);
+
+    // when
+    await innToken.connect(signers[6]).transferFrom(signers[5].address , 500 );
+
+    // then
+    expect(await innToken.allowance(signers[5].address , signers[6].address)).to.equal(parseInt(allowance) - 500);
+    expect(await innToken.balanceOf(signers[7].address)).to.equal(parseInt(toBalance) + 500);
+
+
+  });
+  
+  it("should CONSENSUS_ROLE mint token", async function () {
+    //given
+    const currentTotal = await innToken.totalSupply();
+    //when
+    const mintTx = await innToken.connect(CONSENSUS_ROLE_SIGNER).mint(1_000_000_000 * 10**18);
+    // then
+    expect(await innToken.totalSupply()).to.equal(parseInt(currentTotal) + 1_000_000_000 * 10**18 );
+  });
+
+  it("should CONSENSUS_ROLE burn token from contract address", async function(){
+    // given
+    const currentTotal = await innToken.totalSupply();
+    //when
+    const burnTX =  await innToken.connect(CONSENSUS_ROLE_SIGNER).burn(10000);
+    //then
+    expect(await innToken.totalSupply()).to.equal(currentTotal - 10000);
+  });
+
+
+
+  it("should DEFAULT_ADMIN_ROLE grant new role" , async function (){
+    //given 
+      const hasRole = await innToken.hasRole(CONSENSUS_ROLE , signers[8].address);
+    //when 
+    await innToken.grantRole(CONSENSUS_ROLE , signers[8].address);
+    //then
+      expect(await innToken.hasRole(CONSENSUS_ROLE , signers[8].address)).to.be.ok;
+
+  });
+  it("should DEFAULT_ADMIN_ROLE revokeRole" , async function (){
+    //given 
+      const hasRole = await innToken.hasRole(CONSENSUS_ROLE , signers[8].address);
+    //when 
+    await innToken.revokeRole(CONSENSUS_ROLE , signers[8].address);
+    //then
+      expect(await innToken.hasRole(CONSENSUS_ROLE , signers[8].address)).to.be.false;;
+
+  });
+
+
+  it("should onlyOwner unFreeze amount from any account" , async function(){
+      //given 
+      const accountBalance = await innToken.balanceOf(signers[0].address);
+      const freezedBalance = await innToken.freezedOf(signers[0].address);
+      //when
+      await innToken.connect(signers[1]).unFreeze(signers[0].address , 4000);
+      // then
+      expect(await innToken.balanceOf(signers[0].address)).to.equal(parseInt(accountBalance) + 4000);
+      expect(await innToken.freezedOf(signers[0].address)).to.equal(parseInt(freezedBalance) - 4000);
+
+      
+  });
+
+        
+
+});
