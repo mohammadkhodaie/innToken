@@ -5,6 +5,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InnGovernor is IInnGovernor , Ownable  {
 
+    constructor(address startValidator){
+        isValidator[startValidator] = true ; 
+    }
 
     //for address we don't have new signature
     bytes4 constant private transferSignature = bytes4(keccak256("transferFrom(address,address,uint256)"));
@@ -96,7 +99,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
         uint32 tokenOffer,
         uint8 sharedStake, 
         ProposalType proposalType
-    ) public override returns (uint256){
+    ) public onlyValidators override  returns (uint256){
 
 
         uint256 proposalId = hashProposal( keccak256(bytes(description)),
@@ -193,8 +196,13 @@ contract InnGovernor is IInnGovernor , Ownable  {
     // }
     function _quorumReached(uint256 proposalId) internal view  returns (bool) {
         ProposalVote storage proposalvote = _proposalVotes[proposalId];
-        return validatorCnt/2 + 1 > proposalvote.forVotes   ;
+        ProposalType storage proposalType = _proposalDetails[proposalID].proposalType;
+        if(proposalType == GrantRole)
+            return 2*validatorCnt/3 + 1 > proposalvote.forVotes   ;
+        else 
+            return validatorCnt/2 + 1 > proposalvote.forVotes   ;
     }
+
 
     function _fullQuorum(uint256 proposalId) internal view returns(bool){
         ProposalVote storage proposalvote = _proposalVotes[proposalId];
@@ -218,7 +226,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
             return ProposalState.Active;
         } else if (proposal.voteEnd.isExpired() || _fullQuorum(proposalId)  ) {
             // return ProposalState.Defeated;//TODO: change this shit 
-
+                // if(proposal.)
                 _quorumReached(proposalId) 
                     ? ProposalState.Succeeded
                     : ProposalState.Defeated;

@@ -15,7 +15,8 @@ abstract contract IInnGovernor {
     enum ProposalType {
         None, 
         NewValidator  , 
-        NewProposal 
+        NewProposal , 
+        GrantRole //description: grant role for consensuse role in ERC20 contract 
     }
 
     enum ProposalState {
