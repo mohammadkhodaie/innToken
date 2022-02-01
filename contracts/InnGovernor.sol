@@ -5,9 +5,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InnGovernor is IInnGovernor , Ownable  {
 
-    constructor(address startValidator){
-        isValidator[startValidator] = true ; 
+    constructor(address startValidator , uint256 _votingDelay , uint256 _votingPeriod){
+        votingDelay = _votingDelay;
+        votingPeriod = _votingPeriod;
+        isValidator[startValidator] = true ;
+        validatorCnt=1; 
     }
+    uint256 votingDelay ; 
+    uint256 votingPeriod ; 
 
     //for address we don't have new signature
     bytes4 constant private transferSignature = bytes4(keccak256("transferFrom(address,address,uint256)"));
@@ -48,7 +53,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
 
     mapping(uint256 => ProposalDetails) private _proposalDetails;//proposalID to details 
     mapping(address => bool ) isValidator ; //
-    uint32 validatorCnt ; 
+    uint32 public validatorCnt ; 
     mapping(uint256 => ProposalVote) private _proposalVotes;
     mapping(uint256 => ProposalCore) private _proposalCores;//the main struct in governor changed from block to timer
     // modifiers 
@@ -66,17 +71,17 @@ contract InnGovernor is IInnGovernor , Ownable  {
 
 
 
-    /**
-     * @notice module:user-config
-     * @dev Delay, in number of block, between the proposal is created and the vote starts. This can be increassed to
-     * leave time for users to buy voting power, of delegate it, before the voting of a proposal starts.
-     */
-    function votingDelay() public pure override returns (uint256){
-        return 0 ; // return numberOfDays
-    }
-    function votingPeriod() public pure override returns (uint256){
-        return 7 ; // return numberOfDays   
-    }
+    // /**
+    //  * @notice module:user-config
+    //  * @dev Delay, in number of block, between the proposal is created and the vote starts. This can be increassed to
+    //  * leave time for users to buy voting power, of delegate it, before the voting of a proposal starts.
+    //  */
+    // function votingDelay() public pure override returns (uint256){
+    //     return votingDelay ; // return numberOfDays
+    // }
+    // function votingPeriod() public pure override returns (uint256){
+    //     return votingPeriod ; // return numberOfDays   
+    // }
     
 
    function hashProposal(
@@ -94,7 +99,6 @@ contract InnGovernor is IInnGovernor , Ownable  {
     function propose(
         string memory description, //in the event must emit string of description
         bytes32 startupID,
-        address proposer,
         address candidate,
         uint32 tokenOffer,
         uint8 sharedStake, 
@@ -104,7 +108,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
 
         uint256 proposalId = hashProposal( keccak256(bytes(description)),
                                            startupID,
-                                           proposer,
+                                           msg.sender,
                                            candidate,
                                            tokenOffer,
                                            sharedStake,
@@ -112,8 +116,8 @@ contract InnGovernor is IInnGovernor , Ownable  {
                                            );
         {
             ProposalCore storage proposal = _proposalCores[proposalId];
-            uint64 startTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 days *votingDelay()) ; 
-            uint64 endTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 days *votingPeriod()) ; 
+            uint64 startTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 days *votingDelay) ; 
+            uint64 endTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 days *votingPeriod) ; 
             proposal.voteStart.setDeadline(startTimeStamp);
             proposal.voteEnd.setDeadline(endTimeStamp);
         }
@@ -122,15 +126,16 @@ contract InnGovernor is IInnGovernor , Ownable  {
             ProposalDetails storage proposal = _proposalDetails[proposalId];
             proposal.descriptionHash    = descriptionHash; //in the event must emit string of description
             proposal.startupID    = startupID; 
-            proposal.proposer    = proposer;
+            proposal.proposer    = msg.sender;
             proposal.candidate    = candidate;
             proposal.tokenOffer    = tokenOffer;
             proposal.sharedStake    = sharedStake; 
             proposal.proposalType    = proposalType;
         }
         emit ProposalCreated(
+            proposalId , 
             startupID,
-            proposer,
+            msg.sender,
             candidate,
             tokenOffer,
             sharedStake, 
@@ -196,8 +201,8 @@ contract InnGovernor is IInnGovernor , Ownable  {
     // }
     function _quorumReached(uint256 proposalId) internal view  returns (bool) {
         ProposalVote storage proposalvote = _proposalVotes[proposalId];
-        ProposalType storage proposalType = _proposalDetails[proposalID].proposalType;
-        if(proposalType == GrantRole)
+        ProposalDetails storage proposalDetails = _proposalDetails[proposalId];// TODO : check efficiency 
+        if(proposalDetails.proposalType == ProposalType.GrantRole)
             return 2*validatorCnt/3 + 1 > proposalvote.forVotes   ;
         else 
             return validatorCnt/2 + 1 > proposalvote.forVotes   ;
@@ -214,7 +219,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
      * need to change the state machine 
      */
     function state(uint256 proposalId) public view override returns (ProposalState) {
-        ProposalCore memory proposal = _proposalCores[proposalId];
+        ProposalCore storage proposal = _proposalCores[proposalId];
 
         if (proposal.executed) {
             return ProposalState.Executed;
@@ -227,7 +232,8 @@ contract InnGovernor is IInnGovernor , Ownable  {
         } else if (proposal.voteEnd.isExpired() || _fullQuorum(proposalId)  ) {
             // return ProposalState.Defeated;//TODO: change this shit 
                 // if(proposal.)
-                _quorumReached(proposalId) 
+            return
+                    _quorumReached(proposalId) 
                     ? ProposalState.Succeeded
                     : ProposalState.Defeated;
         } else {

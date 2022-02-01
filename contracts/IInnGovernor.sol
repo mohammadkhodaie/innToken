@@ -49,13 +49,13 @@ abstract contract IInnGovernor {
     ) public pure virtual returns (uint256);
 
 
-    /**
-     * @notice module:user-config
-     * @dev Delay, in number of block, between the proposal is created and the vote starts. This can be increassed to
-     * leave time for users to buy voting power, of delegate it, before the voting of a proposal starts.
-     */
-    function votingDelay() public view virtual returns (uint256);//TODO:change to period
-    function votingPeriod() public view virtual returns (uint256);//TODO:change to period
+    // /**
+    //  * @notice module:user-config
+    //  * @dev Delay, in number of block, between the proposal is created and the vote starts. This can be increassed to
+    //  * leave time for users to buy voting power, of delegate it, before the voting of a proposal starts.
+    //  */
+    // function votingDelay() public view virtual returns (uint256);//TODO:change to period
+    // function votingPeriod() public view virtual returns (uint256);//TODO:change to period
 
 
     /**
@@ -67,7 +67,6 @@ abstract contract IInnGovernor {
     function propose(
         string memory description, //in the event must emit string of description
         bytes32 startupID,
-        address proposer,
         address startup,
         uint32 tokenOffer,
         uint8 sharedStake, 
@@ -78,6 +77,7 @@ abstract contract IInnGovernor {
      * @dev Emitted when a proposal is created.
      */
     event ProposalCreated(
+        uint256 proposalId , 
         bytes32 startupID, 
         address proposer,
         address startup,
