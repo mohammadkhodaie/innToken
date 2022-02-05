@@ -1,4 +1,5 @@
-const { assert, expect } = require("chai");
+const { assert, expect, should } = require("chai");
+const { allowedNodeEnvironmentFlags } = require("process");
 const { Writable } = require("stream");
 const InnGovernor = artifacts.require("InnGovernor");
 /*
@@ -18,16 +19,18 @@ contract("GovernanceFullQuorum", (accounts) =>  {
 
 
 
-    const proposalPending = 1 ; 
-    const proposalActive = 2 ; 
-    const proposalSucceeded = 5 ; 
-    const proposalDefeated = 4 ; 
-    const proposalExecuted = 8 ; 
-    const proposalCanceled = 3; 
+    const proposalPending   = "1" ; 
+    const proposalActive    = "2" ; 
+    const proposalSucceeded = "5" ; 
+    const proposalDefeated  = "4" ; 
+    const proposalExecuted  = "8" ; 
+    const proposalCanceled  = "3" ; 
     
     const PROPOSE_NEW_VALIDATOR_DESC = "ADDING NEW VALIDATOR"; 
+    const PROPOSE_NEW_STARTUP_DESC = "ADDING NEW STARTUP"; 
 
- let TxObj; 
+
+    let lastProposalId; 
     before(async () => {
       innGovernance = await InnGovernor.deployed();//new deployed at 
 
@@ -39,15 +42,16 @@ contract("GovernanceFullQuorum", (accounts) =>  {
 
       //when 
       
-       TxObj = await innGovernance.propose( PROPOSE_NEW_VALIDATOR_DESC , 
+       let TxObj = await innGovernance.propose( PROPOSE_NEW_VALIDATOR_DESC , 
                                             web3.utils.asciiToHex('') ,
-                                            accounts[8] ,
+                                            accounts[7] ,
                                             0 , 
                                             0 , 
                                             ProposeNewValidator
-                                            ,{from:accounts[9] } 
+                                            ,{from:accounts[8] } 
       );
-        console.log("MAYBE TimeStamp " ,TxObj.logs[0].args[6].toString());
+
+      lastProposalId = TxObj.logs[0].args[0];
       //then 
 
       let ProposalHash = 
@@ -59,8 +63,8 @@ contract("GovernanceFullQuorum", (accounts) =>  {
             [
               web3.utils.keccak256(PROPOSE_NEW_VALIDATOR_DESC) , 
               web3.utils.asciiToHex('') ,
-              accounts[9],
               accounts[8],
+              accounts[7],
               0,
               0,
               ProposeNewValidator
@@ -68,30 +72,62 @@ contract("GovernanceFullQuorum", (accounts) =>  {
           )
         );
             
-        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        console.log("DD" , ProposalHash);
-        console.log("DDD" ,  web3.utils.toHex( TxObj.logs[0].args[0] ) );
-        // assert.equal(new web3.utils.BN(ProposalHash) ,TxObj.logs[0].args[0] );
+        assert.equal(ProposalHash ,web3.utils.toHex( TxObj.logs[0].args[0] )  );
+        
+        await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await web3.eth.sendTransaction({from:accounts[1] ,to:accounts[0], value:1000000});
+
+        let proposalState = await innGovernance.state(lastProposalId);
+        assert.equal(proposalState.toString(),proposalActive);
 
 
-    // await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
       
 
-    // const validatorCnt = await innGovernance.validatorCnt(); 
-    // console.log(validatorCnt);
+    });
+    it("should validator vote on accept new validator" , async ()=>{
+      //given 
+        let proposalState = await innGovernance.state(lastProposalId);
+
+      //when
+        await innGovernance.castVote(lastProposalId ,2 , {from:accounts[8]} );
+      //then 
+        let proposalStatePrime = await innGovernance.state(lastProposalId);
+
+      assert.equal(proposalStatePrime.toString(),proposalSucceeded);
 
     });
-    it("sdfsdf" , async ()=>{
-        let state = await innGovernance.state(TxObj.logs[0].args[0]);
-        // while(state == )
-        let block = await web3.eth.getBlock("latest");
-        console.log("TIMESTAMP : " , block.timestamp);
-        let proposalState = await innGovernance.state(TxObj.logs[0].args[0]);
-        console.log("PROPOSAL STATE : ",proposalState.toString());
-        assert.equal(proposalState.toString(),"2");
-
+    it("should only Owner of contract execute the proposal after succeed", async() => {
+      //given 
+        let proposalState = await innGovernance.state(lastProposalId);
+        let validatorCnt =  await innGovernance.validatorCnt();
+        console.log(validatorCnt.toString());
+      //when 
+        await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER});
+      //then 
+      let validatorCntPrime =  await innGovernance.validatorCnt();
+      console.log(validatorCntPrime.toString());
+      assert.equal(validatorCntPrime.toString() , validatorCnt.add(new web3.utils.BN("1")).toString()); 
+      assert.equal(innGovernance._isValidator(accounts[7]), true);
+      
     });
 
+    it("should new validator propose new start up " , async() =>{
+      let TxObj = await innGovernance.propose( PROPOSE_NEW_STARTUP_DESC , 
+        web3.utils.asciiToHex('') ,
+        accounts[8] ,
+        accounts[1] , 
+        20000 , 
+        ProposeNewStartUp
+        ,{from:accounts[9] } 
+      );
+
+      lastProposalId = TxObj.logs[0].args[0];
+    });
+
+
+
+    
 });
         

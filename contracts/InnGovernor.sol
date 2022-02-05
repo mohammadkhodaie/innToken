@@ -5,11 +5,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InnGovernor is IInnGovernor , Ownable  {
 
-    constructor(address startValidator , uint256 _votingDelay , uint256 _votingPeriod){
+    constructor(address _InnTokenAddress,address startValidator , uint256 _votingDelay , uint256 _votingPeriod){
         votingDelay = _votingDelay;
         votingPeriod = _votingPeriod;
         isValidator[startValidator] = true ;
         validatorCnt=1; 
+        InnTokenAddress = _InnTokenAddress;
     }
     uint256 votingDelay ; 
     uint256 votingPeriod ; 
@@ -18,6 +19,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
     bytes4 constant private transferSignature = bytes4(keccak256("transferFrom(address,address,uint256)"));
     address constant private RESERVE_WALLET = 0x7eDAa5Bec0C1C3c40C473f1247d0b755214cC3ae;
     address constant private COMMISSION_WALLET = 0xfa9ff88ed5d2E9bD2D33A02362d69dcE861A0c2E;
+    address InnTokenAddress ; 
     using Timers for Timers.Timestamp;
     struct ProposalCore {
         Timers.Timestamp voteStart;
@@ -52,11 +54,14 @@ contract InnGovernor is IInnGovernor , Ownable  {
 
 
     mapping(uint256 => ProposalDetails) private _proposalDetails;//proposalID to details 
-    mapping(address => bool ) isValidator ; //
+    mapping(address => bool ) private isValidator ; //
     uint32 public validatorCnt ; 
     mapping(uint256 => ProposalVote) private _proposalVotes;
     mapping(uint256 => ProposalCore) private _proposalCores;//the main struct in governor changed from block to timer
     // modifiers 
+    function _isValidator(address addr) public view returns(bool){
+        return isValidator[addr] ; 
+    }
 
     modifier onlyValidators(){
         require(isValidator[msg.sender] == true , "Governor: only validator can vote");
@@ -116,8 +121,8 @@ contract InnGovernor is IInnGovernor , Ownable  {
                                            );
         {
             ProposalCore storage proposal = _proposalCores[proposalId];
-            uint64 startTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 days *votingDelay) ; 
-            uint64 endTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 days *votingPeriod) ; 
+            uint64 startTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 seconds  *votingDelay) ; 
+            uint64 endTimeStamp = (uint64)(block.timestamp )+ (uint64) (1 seconds *votingPeriod) ; 
             proposal.voteStart.setDeadline(startTimeStamp);
             proposal.voteEnd.setDeadline(endTimeStamp);
         }
@@ -203,9 +208,9 @@ contract InnGovernor is IInnGovernor , Ownable  {
         ProposalVote storage proposalvote = _proposalVotes[proposalId];
         ProposalDetails storage proposalDetails = _proposalDetails[proposalId];// TODO : check efficiency 
         if(proposalDetails.proposalType == ProposalType.GrantRole)
-            return 2*validatorCnt/3 + 1 > proposalvote.forVotes   ;
+            return 2*validatorCnt/3 + 1 >= proposalvote.forVotes   ;
         else 
-            return validatorCnt/2 + 1 > proposalvote.forVotes   ;
+            return validatorCnt/2 + 1 >= proposalvote.forVotes   ;
     }
 
 
@@ -335,7 +340,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
                 receiver,
                 amount
         );
-        (bool success, ) = address(this).call(callData);
+        (bool success, ) = address(InnTokenAddress).call(callData);
         require(success , "TRANSFER : transfer failes! "  );//TODO : get calldata outputs
         return success;
     }
