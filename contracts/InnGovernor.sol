@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InnGovernor is IInnGovernor , Ownable  {
 
-    constructor(address _InnTokenAddress,address startValidator ,address _RESERVE_WALLET , uint256 _votingDelay , uint256 _votingPeriod){
+    constructor(address _InnTokenAddress,address startValidator ,address _RESERVE_WALLET , uint256 _votingDelay , uint256 _votingPeriod) payable {
         RESERVE_WALLET = _RESERVE_WALLET;
         votingDelay = _votingDelay;
         votingPeriod = _votingPeriod;
@@ -285,9 +285,10 @@ contract InnGovernor is IInnGovernor , Ownable  {
         );
         _proposalCores[proposalId].executed = true;
 
-        emit ProposalExecuted(proposalId);
 
         _execute(proposalId);
+       
+        emit ProposalExecuted(proposalId);
 
         return true;
     }
@@ -341,8 +342,8 @@ contract InnGovernor is IInnGovernor , Ownable  {
                 receiver,
                 amount
         );
-        (bool success, ) = address(InnTokenAddress).call(callData);
-        require(success , "TRANSFER : transfer failes! "  );//TODO : get calldata outputs
+        (bool success, bytes memory data ) = address(InnTokenAddress).call(callData);
+        //require(success , "TRANSFER : transfer failes! "  );//TODO : get calldata outputs
         return success;
     }
 }

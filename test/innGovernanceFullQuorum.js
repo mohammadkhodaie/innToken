@@ -8,6 +8,12 @@ const InnToken = artifacts.require("InnToken");
  * Ethereum client
  * See docs: https://www.trufflesuite.com/docs/truffle/testing/writing-tests-in-javascript
  */
+
+// function waitFunc(){
+//   await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
+//   await new Promise(resolve => setTimeout(resolve, 3000));
+//   await web3.eth.sendTransaction({from:accounts[1] ,to:accounts[0], value:1000000});
+// }
 contract("GovernanceFullQuorum", (accounts) =>  {
 
     let FirstValidator = accounts[9];
@@ -38,8 +44,8 @@ contract("GovernanceFullQuorum", (accounts) =>  {
       innGovernance = await InnGovernor.deployed();//new deployed at 
       innToken = await InnToken.deployed();
       CONTRACT_ADDRESS = innGovernance.address;
-    });
-     
+    }); 
+
     it("should only Validator propose new validator" , async ()=>{
       //given 
 
@@ -76,7 +82,7 @@ contract("GovernanceFullQuorum", (accounts) =>  {
         );
             
         
-        assert.equal(ProposalHash ,web3.utils.toHex( TxObj.logs[0].args[0] )  );
+        assert.equal(new web3.utils.toBN(ProposalHash).toString() ,new web3.utils.toBN( TxObj.logs[0].args[0] ).toString()  );
         
         await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -105,25 +111,31 @@ contract("GovernanceFullQuorum", (accounts) =>  {
       //given 
         let proposalState = await innGovernance.state(lastProposalId);
         let validatorCnt =  await innGovernance.validatorCnt();
-        console.log(validatorCnt.toString());
+        console.log("VALIDATOR_CNT  : " , validatorCnt.toString());
+        console.log("PROPOSAL_STATE : " , proposalState.toString());
       //when 
-        await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER});
+        let success =  await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER});
       //then 
-      let validatorCntPrime =  await innGovernance.validatorCnt();
-      console.log(validatorCntPrime.toString());
-      assert.equal(validatorCntPrime.toString() , validatorCnt.add(new web3.utils.BN("1")).toString()); 
-      assert.equal(innGovernance._isValidator(accounts[7]), true);
-      
+      await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await web3.eth.sendTransaction({from:accounts[1] ,to:accounts[0], value:1000000});
+
+        let validatorCntPrime =  await innGovernance.validatorCnt();
+        console.log("VALIDATOR_CNT_PRIME : " , validatorCntPrime.toString());
+        console.log("IS_VALIDATOR : " ,await innGovernance._isValidator(accounts[7]) );
+        assert.equal(validatorCntPrime.toString() , validatorCnt.add(new web3.utils.BN("1")).toString()); 
+        assert.equal(await innGovernance._isValidator(accounts[7]), true);
+        
     });
 
     it("should new validator propose new start up " , async() =>{
       let TxObj = await innGovernance.propose( PROPOSE_NEW_STARTUP_DESC , 
         web3.utils.asciiToHex('') ,
-        accounts[8] ,
-        accounts[1] , 
+        FIRST_STARTUP, 
         20000 , 
+        10 , 
         ProposeNewStartUp
-        ,{from:accounts[9] } 
+        ,{from:accounts[8] } 
       );
 
       lastProposalId = TxObj.logs[0].args[0];
@@ -136,8 +148,8 @@ contract("GovernanceFullQuorum", (accounts) =>  {
           ],
           [
             web3.utils.keccak256(PROPOSE_NEW_STARTUP_DESC) , 
-            web3.utils.asciiToHex('1') ,
-            accounts[9],
+            web3.utils.asciiToHex('') ,
+            accounts[8],
             FIRST_STARTUP,
             20000,
             10,
@@ -145,7 +157,8 @@ contract("GovernanceFullQuorum", (accounts) =>  {
           ]
         )
       );
-      assert.equal(ProposalHash ,web3.utils.toHex( TxObj.logs[0].args[0] )  );
+      assert.equal(new web3.utils.toBN(ProposalHash).toString() ,new web3.utils.toBN( lastProposalId ).toString()  );
+
         
       await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -172,14 +185,32 @@ contract("GovernanceFullQuorum", (accounts) =>  {
 
     it("should owner execute the proposal " , async ()=>{
 
+      let allowant = await innToken.allowance(accounts[9], innGovernance.address);
+      console.log("ALLOWANCE :: " , allowant.toString());
+
       //given 
         let proposalState = await innGovernance.state(lastProposalId);
-    
+        let startUpBalance = await innToken.balanceOf(FIRST_STARTUP);
     
       //when 
-        await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER});
-      //then 
         
+        let tx = await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER  });
+        console.log("TX",tx.receipt.rawLogs);
+
+        //then 
+        let proposalStatePrime = await innGovernance.state(lastProposalId);
+
+      //wait for build block   
+        await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await web3.eth.sendTransaction({from:accounts[1] ,to:accounts[0], value:1000000});
+
+      let startUpBalancePrime = await innToken.balanceOf(FIRST_STARTUP);
+
+      assert.equal(
+        startUpBalancePrime.toString(),
+        new web3.utils.BN(startUpBalance).add(new web3.utils.BN("1000")).toString()
+      );
       
       
 

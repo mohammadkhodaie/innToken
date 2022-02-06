@@ -13,14 +13,14 @@ module.exports = async function (deployer , network , accounts) {
   //access information about your deployed contract instance
   const innTokenInst = await InnToken.deployed();
   const innTokenAddress = innTokenInst.address ; 
-  await deployer.deploy(InnGovernor ,innTokenAddress ,RESERVED_WALLET , START_VALIDATOR , 0,3600 );
-
+  await deployer.deploy(InnGovernor ,innTokenAddress , START_VALIDATOR,RESERVED_WALLET  , 0,3600 , {from:accounts[0] , value: "1000000000000000000"} );
+  
   const innGovernorInst = await InnGovernor.deployed();
   innGovernanceAddress = innGovernorInst.address ;
 
 
   //in the next step the innGovernanceAddress have to has allowance to transfer from 
-  innTokenInst.approve(innGovernanceAddress , new web3.utils.BN(1996760000).mult(new web3.utils.BN(10).pow(7)) ,
+  innTokenInst.approve(innGovernanceAddress , new web3.utils.BN(1996760000).mul(new web3.utils.BN("10").pow(new web3.utils.BN("7"))) ,
                       {from : RESERVED_WALLET} );
 
 }
