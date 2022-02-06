@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InnGovernor is IInnGovernor , Ownable  {
 
-    constructor(address _InnTokenAddress,address startValidator , uint256 _votingDelay , uint256 _votingPeriod){
+    constructor(address _InnTokenAddress,address startValidator ,address _RESERVE_WALLET , uint256 _votingDelay , uint256 _votingPeriod){
+        RESERVE_WALLET = _RESERVE_WALLET;
         votingDelay = _votingDelay;
         votingPeriod = _votingPeriod;
         isValidator[startValidator] = true ;
@@ -17,8 +18,8 @@ contract InnGovernor is IInnGovernor , Ownable  {
 
     //for address we don't have new signature
     bytes4 constant private transferSignature = bytes4(keccak256("transferFrom(address,address,uint256)"));
-    address constant private RESERVE_WALLET = 0x7eDAa5Bec0C1C3c40C473f1247d0b755214cC3ae;
-    address constant private COMMISSION_WALLET = 0xfa9ff88ed5d2E9bD2D33A02362d69dcE861A0c2E;
+    address private RESERVE_WALLET    ;
+    address private COMMISSION_WALLET ;
     address InnTokenAddress ; 
     using Timers for Timers.Timestamp;
     struct ProposalCore {

@@ -2,6 +2,7 @@ const { assert, expect, should } = require("chai");
 const { allowedNodeEnvironmentFlags } = require("process");
 const { Writable } = require("stream");
 const InnGovernor = artifacts.require("InnGovernor");
+const InnToken = artifacts.require("InnToken");
 /*
  * uncomment accounts to access the test accounts made available by the
  * Ethereum client
@@ -13,6 +14,7 @@ contract("GovernanceFullQuorum", (accounts) =>  {
     let ADMIN_ROLE_SIGNER = accounts[0];
     let CONTRACT_ADDRESS ; 
     let innGovernance ;
+    let innToken ; 
     const ProposeNewValidator = 1 ;
     const ProposeNewStartUp = 2 ;
     const ProposeGrantRole = 3 ; 
@@ -29,11 +31,12 @@ contract("GovernanceFullQuorum", (accounts) =>  {
     const PROPOSE_NEW_VALIDATOR_DESC = "ADDING NEW VALIDATOR"; 
     const PROPOSE_NEW_STARTUP_DESC = "ADDING NEW STARTUP"; 
 
+    const FIRST_STARTUP = accounts[5];
 
     let lastProposalId; 
     before(async () => {
       innGovernance = await InnGovernor.deployed();//new deployed at 
-
+      innToken = await InnToken.deployed();
       CONTRACT_ADDRESS = innGovernance.address;
     });
      
@@ -124,8 +127,63 @@ contract("GovernanceFullQuorum", (accounts) =>  {
       );
 
       lastProposalId = TxObj.logs[0].args[0];
+      
+      let ProposalHash = 
+      web3.utils.keccak256(
+        web3.eth.abi.encodeParameters(
+          [
+            'bytes32','bytes32','address','address','uint32','uint8','uint8'
+          ],
+          [
+            web3.utils.keccak256(PROPOSE_NEW_STARTUP_DESC) , 
+            web3.utils.asciiToHex('1') ,
+            accounts[9],
+            FIRST_STARTUP,
+            20000,
+            10,
+            ProposeNewStartUp
+          ]
+        )
+      );
+      assert.equal(ProposalHash ,web3.utils.toHex( TxObj.logs[0].args[0] )  );
+        
+      await web3.eth.sendTransaction({from:accounts[0] ,to:accounts[1], value:1000000});
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await web3.eth.sendTransaction({from:accounts[1] ,to:accounts[0], value:1000000});
+
+      let proposalState = await innGovernance.state(lastProposalId);
+      assert.equal(proposalState.toString(),proposalActive);
+    
+    });
+    it("should validators vote on the proposal" , async ()=> {
+      //given 
+      let proposalState = await innGovernance.state(lastProposalId);
+
+      //when
+        await innGovernance.castVote(lastProposalId ,2 , {from:accounts[7]} );
+        await innGovernance.castVote(lastProposalId ,2 , {from:accounts[8]} );
+
+      //then 
+        let proposalStatePrime = await innGovernance.state(lastProposalId);
+
+        assert.equal(proposalStatePrime.toString(),proposalSucceeded);
+
     });
 
+    it("should owner execute the proposal " , async ()=>{
+
+      //given 
+        let proposalState = await innGovernance.state(lastProposalId);
+    
+    
+      //when 
+        await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER});
+      //then 
+        
+      
+      
+
+    });
 
 
     
