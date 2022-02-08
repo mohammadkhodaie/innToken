@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InnGovernor is IInnGovernor , Ownable  {
 
-    constructor(address _InnTokenAddress,address startValidator ,address _RESERVE_WALLET , uint256 _votingDelay , uint256 _votingPeriod) payable {
+    constructor(address _InnTokenAddress,address startValidator ,address _RESERVE_WALLET , address _COMMISSION_WALLET , uint256 _votingDelay , uint256 _votingPeriod) payable {
+        COMMISSION_WALLET = _COMMISSION_WALLET;
         RESERVE_WALLET = _RESERVE_WALLET;
         votingDelay = _votingDelay;
         votingPeriod = _votingPeriod;
@@ -285,22 +286,24 @@ contract InnGovernor is IInnGovernor , Ownable  {
         );
         _proposalCores[proposalId].executed = true;
 
+        bool Succeeded =  _execute(proposalId);  
+        if(Succeeded)
+            emit ProposalExecuted(proposalId);
 
-        _execute(proposalId);
-       
-        emit ProposalExecuted(proposalId);
-
-        return true;
+        return Succeeded;
     }
 
-
+    // event sendCondidate();
+    // event sendCOMMISION();
+    // event sendProposer();
+    // event sendVoters();
     /**
      * @dev Internal execution mechanism. Can be overriden to implement different execution mechanism
      */
     function _execute(
           uint256 proposalId
     ) internal virtual returns(bool){
-        bool success ;
+        bool success = true;
         ProposalDetails storage proposal =  _proposalDetails[proposalId];
         if(proposal.proposalType == ProposalType.NewValidator){
             isValidator[proposal.candidate] = true ; 
@@ -309,13 +312,13 @@ contract InnGovernor is IInnGovernor , Ownable  {
         }
         else if(_proposalDetails[proposalId].proposalType ==ProposalType.NewProposal){
 
-            success =  _transferToken(proposal.candidate , proposal.tokenOffer);
+            success =  (success&&_transferToken(proposal.candidate , proposal.tokenOffer));
 
-            success =  _transferToken(COMMISSION_WALLET , (5*proposal.tokenOffer)/100);
+            success =  (success && _transferToken(COMMISSION_WALLET , (5*proposal.tokenOffer)/100));
 
-            success =  _transferToken(proposal.proposer , (proposal.tokenOffer)/100);
+            success =  (success && _transferToken(proposal.proposer , (proposal.tokenOffer)/100));
 
-            success = _sendRewards(proposalId , proposal.tokenOffer);  
+            success = (success && _sendRewards(proposalId , proposal.tokenOffer));  
               
         }
         return success; 
@@ -331,7 +334,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
         uint reward = (2*tokenOffer/100)/voterLength;
         bool success ; 
         for(uint i = 0 ; i < voterLength ; i++){
-           success =  _transferToken(proposalVote.hasVoted.at(i) , reward);
+           success = (success && _transferToken(proposalVote.hasVoted.at(i) , reward));
         }
         return success;
     }
@@ -343,7 +346,7 @@ contract InnGovernor is IInnGovernor , Ownable  {
                 amount
         );
         (bool success, bytes memory data ) = address(InnTokenAddress).call(callData);
-        //require(success , "TRANSFER : transfer failes! "  );//TODO : get calldata outputs
+        require(success , "TRANSFER : transfer failes! "  );//TODO : get calldata outputs
         return success;
     }
 }

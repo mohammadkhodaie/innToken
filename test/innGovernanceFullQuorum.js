@@ -25,7 +25,9 @@ contract("GovernanceFullQuorum", (accounts) =>  {
     const ProposeNewStartUp = 2 ;
     const ProposeGrantRole = 3 ; 
 
-
+    let RESERVED_WALLET = accounts[9] ; 
+    let COMMISION_WALLET = accounts[1];
+    let START_VALIDATOR = accounts[8];
 
     const proposalPending   = "1" ; 
     const proposalActive    = "2" ; 
@@ -191,12 +193,17 @@ contract("GovernanceFullQuorum", (accounts) =>  {
       //given 
         let proposalState = await innGovernance.state(lastProposalId);
         let startUpBalance = await innToken.balanceOf(FIRST_STARTUP);
-    
+        let commissionBalance = await innToken.balanceOf(COMMISION_WALLET);
+
+        console.log("commissionBalance : " ,commissionBalance.toString() );
       //when 
         
-        let tx = await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER  });
-        console.log("TX",tx.receipt.rawLogs);
+        let tx = await innGovernance.execute(lastProposalId, {from : ADMIN_ROLE_SIGNER  , gasLimit: 20000000  });
+        // console.log("TX",tx);
 
+        // console.log("TX_RAWLOGS " ,tx.receipt.rawLogs);
+
+        
         //then 
         let proposalStatePrime = await innGovernance.state(lastProposalId);
 
@@ -206,12 +213,17 @@ contract("GovernanceFullQuorum", (accounts) =>  {
         await web3.eth.sendTransaction({from:accounts[1] ,to:accounts[0], value:1000000});
 
       let startUpBalancePrime = await innToken.balanceOf(FIRST_STARTUP);
-
+      let commissionBalancePrime = await innToken.balanceOf(COMMISION_WALLET);
+      console.log("commissionBalancePrime :  ", commissionBalancePrime.toString());
       assert.equal(
         startUpBalancePrime.toString(),
-        new web3.utils.BN(startUpBalance).add(new web3.utils.BN("1000")).toString()
+        new web3.utils.BN(startUpBalance).add(new web3.utils.BN("20000")).toString()
       );
-      
+      //commision wallet get 5% of 20000 that must be equal 
+      assert.equal(
+        commissionBalancePrime.toString(),
+        new web3.utils.BN(commissionBalance).add(new web3.utils.BN("1000")).toString()
+      );
       
 
     });

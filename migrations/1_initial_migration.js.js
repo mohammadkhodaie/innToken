@@ -7,16 +7,20 @@ const InnGovernor = artifacts.require("InnGovernor");
 module.exports = async function (deployer , network , accounts) {
   // deploy a contract
   let RESERVED_WALLET = accounts[9] ; 
-  let COMMISION_WALLET = accounts[0];
+  let COMMISION_WALLET = accounts[1];
   let START_VALIDATOR = accounts[8];
   await deployer.deploy(InnToken , RESERVED_WALLET ,COMMISION_WALLET );
   //access information about your deployed contract instance
   const innTokenInst = await InnToken.deployed();
   const innTokenAddress = innTokenInst.address ; 
-  await deployer.deploy(InnGovernor ,innTokenAddress , START_VALIDATOR,RESERVED_WALLET  , 0,3600 , {from:accounts[0] , value: "1000000000000000000"} );
+  await deployer.deploy(InnGovernor ,innTokenAddress , START_VALIDATOR,RESERVED_WALLET ,COMMISION_WALLET , 0,3600 , {from:accounts[0] , value: "1000000000000000000"} );
   
   const innGovernorInst = await InnGovernor.deployed();
   innGovernanceAddress = innGovernorInst.address ;
+
+  const CONSENSUS_ROLE = web3.utils.keccak256("CONSENSUS_ROLE");
+  //innGovernance address must have consensuse role 
+  innTokenInst.grantRole(CONSENSUS_ROLE , innGovernanceAddress);
 
 
   //in the next step the innGovernanceAddress have to has allowance to transfer from 
