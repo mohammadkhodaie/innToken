@@ -19,9 +19,16 @@ module.exports = async function (deployer , network , accounts) {
   innGovernanceAddress = innGovernorInst.address ;
 
   const CONSENSUS_ROLE = web3.utils.keccak256("CONSENSUS_ROLE");
+  const DEFAULT_ADMIN_ROLE = 0x00;
+
   //innGovernance address must have consensuse role 
   innTokenInst.grantRole(CONSENSUS_ROLE , innGovernanceAddress);
 
+  //NEW CHANGE : CONSENSUS_ROLE GOING TO BE ADMIN ROLE IN INNTOKEN . 
+  //THE OWNER OF GOVERNANCE WILL HAVE PERMISSIONS TO EXECUTE FREEZE FROM GOVERNANCE CONTRACT 
+  innTokenInst.grantRole(DEFAULT_ADMIN_ROLE , innGovernanceAddress);
+
+  innTokenInst.renounceRole(DEFAULT_ADMIN_ROLE , accounts[0]);
 
   //in the next step the innGovernanceAddress have to has allowance to transfer from 
   innTokenInst.approve(innGovernanceAddress , new web3.utils.BN(1996760000).mul(new web3.utils.BN("10").pow(new web3.utils.BN("7"))) ,

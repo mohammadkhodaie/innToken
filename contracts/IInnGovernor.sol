@@ -4,39 +4,43 @@ import "openzeppelin-solidity/contracts/utils/structs/EnumerableMap.sol";
 import "openzeppelin-solidity/contracts/utils/Timers.sol";
 
 abstract contract IInnGovernor {
-
     enum VoteType {
         None,
-        Against ,
+        Against,
         For,
         Abstain
-    }  
-
-    enum ProposalType {
-        None, 
-        NewValidator  , 
-        NewProposal , 
-        GrantRole //description: grant role for consensuse role in ERC20 contract 
     }
 
+    enum ProposalType {
+        None,
+        NewValidator,
+        NewProposal,
+        GrantRole
+    }
+    //description: grant role for consensuse role in ERC20 contract
+    //this means that the new governance address will be used for governance and have access to transferFrom reserved wallet
     enum ProposalState {
         None,
-        Pending,//
+        Pending, //
         Active,
         Canceled,
-        Defeated,// < 51
-        Succeeded,//51 > 
+        Defeated, // < 51
+        Succeeded, //51 >
         Queued,
         Expired,
         Executed
     }
 
-//RSV 712 , castVoteBySig  , castVote 
-//Timelock in /home/mamadeus/Documents/SolStuff/TruffleStart/node_modules/openzeppelin-solidity/contracts/governance
-//0 for not 1 for execute and other for other shits
-    //Events 
-    event VoteCast(address indexed voter, uint256 proposalId, uint8 support, string reason);
-
+    //RSV 712 , castVoteBySig  , castVote
+    //Timelock in /home/mamadeus/Documents/SolStuff/TruffleStart/node_modules/openzeppelin-solidity/contracts/governance
+    //0 for not 1 for execute and other for other shits
+    //Events
+    event VoteCast(
+        address indexed voter,
+        uint256 proposalId,
+        uint8 support,
+        string reason
+    );
 
     function hashProposal(
         bytes32 descriptionHash, //in the event must emit string of description
@@ -44,10 +48,9 @@ abstract contract IInnGovernor {
         address proposer,
         address startup,
         uint32 tokenOffer,
-        uint8 sharedStake, 
+        uint8 sharedStake,
         ProposalType proposalType
     ) public pure virtual returns (uint256);
-
 
     // /**
     //  * @notice module:user-config
@@ -56,7 +59,6 @@ abstract contract IInnGovernor {
     //  */
     // function votingDelay() public view virtual returns (uint256);//TODO:change to period
     // function votingPeriod() public view virtual returns (uint256);//TODO:change to period
-
 
     /**
      * @dev Create a new proposal. Vote start {IGovernor-votingDelay} blocks after the proposal is created and ends
@@ -69,7 +71,7 @@ abstract contract IInnGovernor {
         bytes32 startupID,
         address startup,
         uint32 tokenOffer,
-        uint8 sharedStake, 
+        uint8 sharedStake,
         ProposalType proposalType
     ) public virtual returns (uint256);
 
@@ -77,25 +79,15 @@ abstract contract IInnGovernor {
      * @dev Emitted when a proposal is created.
      */
     event ProposalCreated(
-        uint256 proposalId , 
-        bytes32 startupID, 
+        uint256 proposalId,
+        bytes32 startupID,
         address proposer,
         address startup,
         uint32 tokenOffer,
-        uint8 sharedStake, 
+        uint8 sharedStake,
         uint64 startTimestamp,
         string description
     );
-
-
-
-
-
-
-
-
-
-
 
     // /**
     //  * @dev Execute a successful proposal. This requires the quorum to be reached, the vote to be successful, and the
@@ -117,8 +109,7 @@ abstract contract IInnGovernor {
      *
      * Emits a {VoteCast} event.
      */
-    function castVote(uint256 proposalId, uint8 support) public virtual ;
-
+    function castVote(uint256 proposalId, uint8 support) public virtual;
 
     /**
      * @dev Cast a with a reason
@@ -129,7 +120,7 @@ abstract contract IInnGovernor {
         uint256 proposalId,
         uint8 support,
         string calldata reason
-    ) public virtual ;
+    ) public virtual;
 
     // /**
     //  * @dev Cast a vote using the user cryptographic signature.
@@ -148,33 +139,36 @@ abstract contract IInnGovernor {
      * @notice module:voting
      * @dev Returns weither `account` has cast a vote on `proposalId`.
      */
-    function hasVoted(uint256 proposalId, address account) public view virtual returns (bool);
+    function hasVoted(uint256 proposalId, address account)
+        public
+        view
+        virtual
+        returns (bool);
+
     /**
      * @notice module:core
      * @dev Current state of a proposal, following Compound's convention
      */
-    function state(uint256 proposalId) public view virtual returns (ProposalState);
-
+    function state(uint256 proposalId)
+        public
+        view
+        virtual
+        returns (ProposalState);
 
     /**
      * @dev Emitted when a proposal is canceled.
      */
     event ProposalCanceled(uint256 proposalId);
 
-    function _cancel(
-          uint256 proposalId
-    ) internal virtual returns (bool) ;//TODO
+    function _cancel(uint256 proposalId) internal virtual returns (bool); //TODO
 
-        /**
+    /**
      * @dev See {IGovernor-execute}.
      */
-    function execute(
-          uint256 proposalId
+    function execute(uint256 proposalId) public payable virtual returns (bool);
 
-    ) public payable virtual returns (bool) ;
     /**
      * @dev Emitted when a proposal is executed.
      */
     event ProposalExecuted(uint256 proposalId);
-
 }
